@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zemen - detection integrity</title>
+<style>
+:root{--bg:#0f1720;--panel:#17222e;--line:#263545;--text:#e6edf3;--mute:#8fa3b5;--ok:#2e9e6b;--warn:#d9a21b;--bad:#d1495b;--info:#3b82c4;--grey:#3a4756}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+header{display:flex;gap:16px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line);background:#0b121a}
+header h1{font-size:18px;margin:0}header small{color:var(--mute)}
+nav{display:flex;gap:4px;flex-wrap:wrap;padding:8px 20px;border-bottom:1px solid var(--line)}
+nav button{background:none;border:0;color:var(--mute);padding:8px 12px;border-radius:6px;cursor:pointer;font:inherit}
+nav button.on{background:var(--panel);color:var(--text)}
+main{padding:20px;max-width:1400px;margin:auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}
+.card h3{margin:0 0 6px;font-size:12px;color:var(--mute);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.big{font-size:28px;font-weight:700}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;background:var(--grey)}
+.healthy,.pass,.verified,.expected_local_pattern,.expected_org_pattern{background:var(--ok)}
+.silent,.noise_drowned,.fail,.unexplained_escalate,.degraded,.error{background:var(--bad)}
+.noise_suspected,.no_data_in_window,.partial,.healthy-cell{background:var(--warn);color:#111}
+.never_fired,.disabled,.uncovered{background:var(--grey)}
+button.act{background:var(--info);color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;font:inherit}
+button.act.alt{background:var(--grey)}
+button.act:disabled{opacity:.5;cursor:wait}
+input,select,textarea{background:#0b121a;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit}
+textarea{width:100%;min-height:220px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.mute{color:var(--mute)}.err{color:var(--bad)}.okmsg{color:var(--ok)}
+.matrix{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(150px,1fr);gap:6px;overflow-x:auto;padding-bottom:8px}
+.col h4{margin:0 0 6px;font-size:12px;color:var(--mute)}
+.cell{padding:6px 8px;border-radius:5px;margin-bottom:4px;font-size:12px;cursor:help}
+.cell.uncovered{background:#232e3b;color:#7f90a3}.cell.healthy{background:#1f6f4d}.cell.verified{background:#2e9e6b}.cell.degraded{background:#a8434f}
+.chip{display:inline-block;background:#243447;border:1px solid var(--line);border-radius:12px;padding:2px 9px;margin:2px;font-size:12px}
+.chip button{background:none;border:0;color:var(--bad);cursor:pointer}
+details{margin-top:6px}summary{cursor:pointer;color:var(--info)}
+pre{background:#0b121a;border:1px solid var(--line);border-radius:6px;padding:10px;white-space:pre-wrap;overflow:auto}
+.warnbox{background:#3a2f12;border:1px solid var(--warn);border-radius:6px;padding:8px 12px;margin:8px 0}
+</style>
+</head>
+<body>
+<header><h1>Zemen <span class="mute">ዘመን</span></h1><small id="today"></small><span style="flex:1"></span><small id="msg"></small></header>
+<nav id="nav"></nav>
+<main id="main"></main>
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+function h(tag,attrs,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{})){if(k==="class")e.className=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(v!==false&&v!=null)e.setAttribute(k,v);}
+ for(const k of kids.flat(Infinity)){if(k==null||k===false)continue;e.append(k.nodeType?k:document.createTextNode(String(k)));}return e;}
+async function api(path,body,retried){
+ const opt={headers:{"X-Zemen-Token":sessionStorage.zt||"","X-Zemen-UI":"1"}};
+ if(body!==undefined){opt.method="POST";opt.headers["Content-Type"]="application/json";opt.body=JSON.stringify(body);}
+ const r=await fetch(path,opt);let j=null;try{j=await r.json();}catch(e){}
+ if(r.status===401&&!retried){const t=prompt("Zemen access token");if(t===null)throw new Error("token required");sessionStorage.zt=t;return api(path,body,true);}
+ if(!r.ok)throw new Error((j&&j.error)||r.statusText);return j;}
+function badge(t){return h("span",{class:"badge "+t},String(t).replace(/_/g," "));}
+function fmt(ts){return ts?String(ts).replace("T"," ").replace("Z",""):"-";}
+function flash(t,bad){const m=$("#msg");m.textContent=t;m.className=bad?"err":"okmsg";setTimeout(()=>{if(m.textContent===t)m.textContent="";},6000);}
+async function guard(btn,fn){btn.disabled=true;try{await fn();}catch(e){flash(e.message,true);}finally{btn.disabled=false;}}
+function sparkline(pts){if(!pts||pts.length<2)return h("span",{class:"mute"},"history builds up daily");
+ const w=220,hh=40,xs=pts.map((p,i)=>i*(w/(pts.length-1))),mx=Math.max(...pts.map(p=>p.debt_score),1);
+ const d=pts.map((p,i)=>xs[i].toFixed(1)+","+(hh-p.debt_score/mx*(hh-4)-2).toFixed(1)).join(" ");
+ const ns="http://www.w3.org/2000/svg";const s=document.createElementNS(ns,"svg");s.setAttribute("width",w);s.setAttribute("height",hh);
+ const l=document.createElementNS(ns,"polyline");l.setAttribute("points",d);l.setAttribute("fill","none");l.setAttribute("stroke","#3b82c4");l.setAttribute("stroke-width","2");s.append(l);return s;}
+function th(...names){return h("thead",{},h("tr",{},names.map(x=>h("th",{},x))));}
+
+const views={
+ async overview(){
+  const o=await api("/api/overview");$("#today").textContent="Today: "+o.today_ethiopian;
+  const sc=Object.entries(o.status_counts||{});
+  const dbt=o.debt||{};const ch=dbt.change30;
+  const sync=h("button",{class:"act",onclick:e=>guard(e.target,async()=>{flash("Running full sync...");const r=await api("/api/sync",{});flash("Synced "+r.detectors+" detectors");show("overview");})},"Run sync now");
+  const wins=o.next_windows||[];
+  return h("div",{},
+   h("div",{class:"row"},sync,h("span",{class:"mute"},"Sync pulls findings, learns cadence and calendar patterns, updates debt and forecast.")),
+   h("div",{class:"cards"},
+    h("div",{class:"card"},h("h3",{},"Detectors"),h("div",{class:"big"},o.detectors),h("div",{},sc.map(([k,v])=>h("div",{},badge(k)," ",v)))),
+    h("div",{class:"card"},h("h3",{},"Detection debt (SOC)"),h("div",{class:"big"},(dbt.soc||0).toFixed(1)),
+      h("div",{class:"mute"},ch==null?"trend needs 30 days of history":(ch>0?"+":"")+ch+"% vs 30 days ago"),sparkline(dbt.history)),
+    h("div",{class:"card"},h("h3",{},"Unexplained spikes (30 days)"),h("div",{class:"big"},o.unexplained_30d),h("div",{class:"mute"},"Spikes no calendar or learned pattern explains"))),
+   h("h3",{},"Upcoming high-impact windows"),
+   wins.length?h("table",{},th("Window","Dates","In","Summary"),
+    h("tbody",{},wins.map(w=>h("tr",{},h("td",{},w.name),h("td",{},w.start+" - "+w.end),h("td",{},w.days_until+"d"),h("td",{},w.summary)))))
+   :h("p",{class:"mute"},"No windows in the forecast horizon yet. Run a sync."));
+ },
+ async detectors(){
+  const r=await api("/api/health");
+  const row=d=>h("tr",{},
+   h("td",{},h("b",{},d.detector_name),h("div",{class:"mute"},d.detector_type)),
+   h("td",{},badge(d.status)),h("td",{},d.status_reason),h("td",{},fmt(d.last_fired_at)),
+   h("td",{},(d.expected_cadence_hours?d.expected_cadence_hours+"h / ":"- / ")+(d.silence_threshold_hours/24).toFixed(1)+"d",h("div",{class:"mute"},d.cadence_basis)),
+   h("td",{},d.fp_basis==="none"?h("span",{class:"mute"},"no data"):d.fp_basis+": "+d.fp_trend_score,d.fp_basis==="proxy_volume"?h("div",{class:"mute"},"surge "+d.surge_ratio+"x"):null),
+   h("td",{},(d.mitre_techniques||[]).map(t=>h("span",{class:"chip"},t))));
+  return h("table",{},th("Detector","Status","Why","Last fired","Cadence (median / silent after)","False positives","ATT&CK"),h("tbody",{},r.map(row)));
+ },
+ async coverage(){
+  const c=await api("/api/coverage");const cn=c.counts||{};
+  const cell=x=>h("div",{class:"cell "+x.state,title:x.technique+" "+x.name+"\n"+(x.detectors.length?"Detectors: "+x.detectors.join(", "):"No detector claims this")},x.technique+" "+x.name);
+  return h("div",{},h("div",{class:"row"},["verified","healthy","degraded","uncovered"].map(k=>h("span",{},h("span",{class:"badge "+(k==="healthy"?"healthy-cell":k)},k)," ",cn[k]||0," "))),
+   h("p",{class:"mute"},"verified = healthy detector + passing Replay Court case. healthy = claimed by a healthy detector but unproven. degraded = only silent/noisy/disabled detectors claim it. uncovered = nothing claims it. Matrix: "+c.source),
+   h("div",{class:"matrix"},c.columns.map(col=>h("div",{class:"col"},h("h4",{},col.tactic),col.cells.map(cell)))));
+ },
+ async tagging(){
+  const t=await api("/api/tags");
+  const optsFor=()=>t.techniques.map(x=>h("option",{value:x.id},x.id+" - "+x.name));
+  const card=d=>{
+    const sel=h("select",{},h("option",{value:""},"Add a technique..."),optsFor());
+    const conf=d.mitre_techniques||[];
+    const save=list=>api("/api/tags",{detector_id:d.detector_id,techniques:list}).then(()=>{flash("Saved tags for "+d.detector_name);show("tagging");}).catch(e=>flash(e.message,true));
+    const accept=ids=>api("/api/tags",{detector_id:d.detector_id,accept_suggestions:true,techniques:ids}).then(()=>{flash("Accepted");show("tagging");}).catch(e=>flash(e.message,true));
+    const sug=d.suggested_techniques||[];
+    return h("div",{class:"card",style:"margin-bottom:10px"},h("b",{},d.detector_name)," ",badge(d.status),
+     h("div",{},"Confirmed: ",conf.length?conf.map(x=>h("span",{class:"chip"},x,h("button",{title:"remove",onclick:()=>save(conf.filter(y=>y!==x))},"x"))):h("span",{class:"mute"},"none yet")),
+     sug.length?h("div",{},"Suggested: ",sug.map((s,i)=>h("span",{class:"chip",title:(d.suggestion_reasons||[])[i]||""},s," ",h("button",{style:"color:var(--ok)",onclick:()=>accept([s])},"accept"))),
+       h("button",{class:"act alt",onclick:()=>accept([])},"accept all")):null,
+     h("div",{class:"row"},sel,h("button",{class:"act",onclick:()=>{if(sel.value)save([...conf,sel.value]);}},"Add")));
+  };
+  return h("div",{},h("p",{class:"mute"},"Guided ATT&CK tagging. Zemen suggests techniques from rule names and Sigma tags; nothing is applied until you confirm it. Hover a suggestion to see why."),t.detectors.map(card));
+ },
+ async anomalies(){
+  const c=await api("/api/contexts?limit=200");
+  if(!c.length)return h("p",{class:"mute"},"No spike days found yet. Spikes appear after enough history exists (14+ days per detector).");
+  const confirmBtn=x=>h("button",{class:"act",onclick:e=>guard(e.target,async()=>{
+    await api("/api/feedback",{detector_id:x.detector_id,date:x.date,action:"confirm",note:prompt("Optional note")||""});
+    flash("Confirmed");show("anomalies");})},"Confirm");
+  const overrideBtn=x=>h("button",{class:"act alt",onclick:e=>guard(e.target,async()=>{
+    const isExp=String(x.auto_label||"").startsWith("expected");let sig="";
+    if(!isExp){sig=prompt("What explains this day? Enter a signal id (e.g. gov-salary, meskel)");if(!sig)return;}
+    await api("/api/feedback",{detector_id:x.detector_id,date:x.date,action:"override",signal:sig,note:prompt("Optional note")||""});
+    flash("Override recorded");show("anomalies");})},"Override");
+  const row=x=>h("tr",{},
+    h("td",{},x.date,h("div",{class:"mute"},x.ethiopian_date)),
+    h("td",{},x.detector_name),
+    h("td",{},x.count,h("div",{class:"mute"},x.ratio>0?x.ratio+"x normal":"burst vs a normal of ~0")),
+    h("td",{},badge(x.label),h("div",{class:"mute"},"confidence "+x.confidence)),
+    h("td",{},h("details",{},h("summary",{},"Why?"),h("ol",{},(x.reasoning||[]).map(r=>h("li",{},r))))),
+    h("td",{},x.feedback?h("div",{},badge(x.feedback==="confirmed"?"pass":"partial")," ",x.feedback):null,
+      h("div",{class:"row"},confirmBtn(x),overrideBtn(x))));
+  return h("div",{},
+    h("p",{class:"mute"},"Days when a detector fired far above its normal, with the reasoning for whether Ethiopian calendar reality or a learned local pattern explains it. Your confirm/override decisions change future confidence."),
+    h("table",{},th("Day","Detector","Count","Label","Reasoning","Your decision"),h("tbody",{},c.map(row))));
+ },
+ async replay(){
+  const r=await api("/api/replay");
+  const tpl=JSON.stringify({case_id:"my-case-id",technique_id:"T1110",description:"What this replays",target_index:"my-logs-zemen-replay",mapped_detectors:["Detector name"],events:[{"@timestamp":"{{now}}",message:"an event shaped like your real log lines"}]},null,2);
+  const ta=h("textarea",{},tpl);
+  const out=h("pre",{style:"display:none"});
+  const resultLine=x=>h("div",{class:"mute"},x.detector_name+": "+(x.passed?"fired in "+(x.latency_seconds||0).toFixed(0)+"s":(x.error||"no result")));
+  const row=c=>h("tr",{},
+    h("td",{},h("b",{},c.case_id),h("div",{class:"mute"},c.description)),h("td",{},c.technique_id),
+    h("td",{},(c.mapped_detectors||[]).join(", "),h("div",{class:"mute"},"into "+c.target_index)),
+    h("td",{},c.last_overall?badge(c.last_overall):h("span",{class:"mute"},"never run"),(c.results||[]).map(resultLine)),
+    h("td",{},fmt(c.last_run_at)),
+    h("td",{},h("button",{class:"act",onclick:e=>guard(e.target,async()=>{flash("Replaying "+c.case_id+"...");await api("/api/replay/run",{case_id:c.case_id});flash("Done");show("replay");})},"Run")));
+  return h("div",{},h("div",{class:"row"},
+    h("button",{class:"act",onclick:e=>guard(e.target,async()=>{flash("Replaying; this can take a few minutes...");await api("/api/replay/run",{});flash("Replay finished");show("replay");})},"Run all cases"),
+    h("button",{class:"act alt",onclick:e=>guard(e.target,async()=>{const o=await api("/api/replay/load",{});flash("Loaded "+o.loaded+" case(s) from disk"+(o.problems.length?"; "+o.problems.length+" problem(s)":""),o.problems.length>0);if(o.problems.length){out.style.display="block";out.textContent=o.problems.join("\n");}else{show("replay");}})},"Load cases from disk")),
+   out,
+   r.length?h("table",{},th("Case","Technique","Detectors","Last result","Last run",""),h("tbody",{},r.map(row))):h("p",{class:"mute"},"No cases yet. Add one below or drop JSON files into zemen-data/replay_cases and click 'Load cases from disk'."),
+   h("h3",{},"Add a case"),h("p",{class:"mute"},"target_index must match the index pattern the mapped detector watches (e.g. postgres-logs-zemen-replay for a detector on postgres-logs*). Replaying straight into a production index is refused unless the case allows it."),
+   ta,h("div",{class:"row"},h("button",{class:"act",onclick:e=>guard(e.target,async()=>{let c;try{c=JSON.parse(ta.value);}catch(x){throw new Error("Invalid JSON: "+x.message);}await api("/api/replay/case",c);flash("Case saved");show("replay");})},"Validate & save")));
+ },
+ async calendar(){
+  const r=await api("/api/calendar?days=200");
+  const row=s=>h("tr",{},h("td",{},h("b",{},s.name),s.notes?h("div",{class:"mute"},s.notes):null),h("td",{},s.start===s.end?s.start:s.start+" - "+s.end),h("td",{},s.ethiopian_start),h("td",{},s.effect.replace("volume_","")),
+     h("td",{},s.source,s.approximate?h("div",{class:"mute"},"approximate"):null));
+  return h("div",{},h("p",{class:"mute"},"Built-in Ethiopian, religious and pay-cycle signals plus your calendar_custom.json. Islamic dates are approximate (+-1-2 days). Default pay-cycle windows are assumptions: replace them with your real dates."),
+   h("table",{},th("Signal","Dates","Ethiopian start","Effect","Source"),h("tbody",{},r.map(row))));
+ },
+ async forecast(){
+  const f=await api("/api/forecast");const now=new Date().toISOString().slice(0,10);
+  const up=f.filter(x=>x.end>=now);
+  const card=x=>h("div",{class:"card",style:"margin-bottom:10px"},h("b",{},x.name)," ",h("span",{class:"mute"},x.start+" to "+x.end+" - in "+x.days_until+" day(s)"),
+    h("p",{},x.summary),(x.recommendations||[]).length?h("ul",{},x.recommendations.map(r=>h("li",{},r.text))):null);
+  return up.length?h("div",{},up.map(card)):h("p",{class:"mute"},"No forecast yet. Run a sync.");
+ },
+ async lineage(){
+  const recs=await api("/api/health");
+  const sel=h("select",{},recs.map(r=>h("option",{value:r.detector_id},r.detector_name)));
+  const box=h("div",{});
+  const load=async()=>{box.replaceChildren();if(!sel.value)return;const l=await api("/api/lineage?detector="+encodeURIComponent(sel.value));
+   const reason=h("input",{placeholder:"Why was it written / changed? (incident, false-positive storm, ...)",style:"width:420px"}),trig=h("input",{placeholder:"trigger e.g. INC-123"}),auth=h("input",{placeholder:"your name"});
+   box.append(l.pending_reasons?h("div",{class:"warnbox"},l.pending_reasons+" automatic definition change(s) have no recorded reason yet."):h("span"),
+    h("pre",{},l.biography),h("h3",{},"Record why"),h("div",{class:"row"},reason,trig,auth,h("button",{class:"act",onclick:e=>guard(e.target,async()=>{await api("/api/lineage",{detector_id:sel.value,reason:reason.value,trigger:trig.value,author:auth.value});flash("Recorded");await load();})},"Add")));};
+  sel.addEventListener("change",()=>load().catch(e=>flash(e.message,true)));setTimeout(()=>load().catch(e=>flash(e.message,true)),0);
+  return h("div",{},h("p",{class:"mute"},"Institutional memory: when each detector was first seen, every definition change (detected automatically), status transitions, replay regressions, and the reasons people recorded."),h("div",{class:"row"},sel),box);
+ },
+ async debt(){
+  const d=await api("/api/debt");
+  const row=r=>h("tr",{},h("td",{},r.detector_name),h("td",{},h("b",{},r.debt_score)),h("td",{},r.age_factor.toFixed(2)),h("td",{},r.fp_factor.toFixed(2)),h("td",{},r.coverage_factor.toFixed(2)),
+     h("td",{},h("details",{},h("summary",{},"explain"),h("ul",{},(r.explanation||[]).map(x=>h("li",{},x))))));
+  return h("div",{},h("div",{class:"cards"},h("div",{class:"card"},h("h3",{},"SOC detection debt"),h("div",{class:"big"},(d.soc||0).toFixed(1)),h("div",{class:"mute"},d.count+" enabled detectors"),
+     h("div",{class:"mute"},d.change30==null?"30-day trend not available yet":(d.change30>0?"+":"")+d.change30+"% vs 30 days ago"),sparkline(d.history))),
+   h("p",{class:"mute"},"Debt = weighted age since last passing replay, false-positive drift, and unverified ATT&CK claims. 0 is best, 100 is worst."),
+   h("table",{},th("Detector","Debt","Age","FP","Coverage","Why"),h("tbody",{},(d.rows||[]).map(row))));
+ }
+};
+const tabs=[["overview","Overview"],["detectors","Detectors"],["coverage","ATT&CK coverage"],["tagging","Tagging"],["anomalies","Anomalies"],["replay","Replay Court"],["calendar","Calendar"],["forecast","Forecast"],["lineage","Lineage"],["debt","Debt"]];
+async function show(name){[...$("#nav").children].forEach(b=>b.classList.toggle("on",b.dataset.t===name));
+ const m=$("#main");m.replaceChildren(h("p",{class:"mute"},"Loading..."));
+ try{m.replaceChildren(await views[name]());}catch(e){m.replaceChildren(h("p",{class:"err"},e.message));}}
+$("#nav").append(...tabs.map(([k,l])=>h("button",{"data-t":k,onclick:()=>show(k)},l)));
+show("overview");
+</script>
+</body>
+</html>

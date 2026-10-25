@@ -1,0 +1,4 @@
+bin/
+zemen-data/
+*.log
+.env
