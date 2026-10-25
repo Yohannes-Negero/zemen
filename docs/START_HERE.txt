@@ -1,140 +1,38 @@
-=====================================================================
- ZEMEN (ዘመን)  -  START HERE
- Detection integrity and Ethiopian calendar context for OpenSearch / Wazuh
-=====================================================================
+ZEMEN - START HERE
+Detection integrity and Ethiopian calendar context for OpenSearch / Wazuh
 
-WHAT YOU HAVE
-  dist\zemen.exe              the program (Windows)
-  dist\zemen-linux            the program (Linux)
-  dist\start-zemen.ps1        optional helper that does steps 4-9 for you
-  docs\Zemen_Live_Test_Runbook.docx   33 tests to try every feature, with
-                                      exactly what you should see
-  README.md                   full reference and known limits
-  (source code, tests and a mock OpenSearch are included too)
+1. GET THE PROGRAM
+   Build from source (needs Go 1.22+):
+     git clone https://github.com/Yohannes-Negero/zemen.git
+     cd zemen
+     go build -o zemen.exe ./cmd/zemen
+   Or download zemen-windows-amd64.exe from the Releases page and rename it
+   to zemen.exe.
 
-WHAT IT DOES, IN ONE PARAGRAPH
-  Zemen watches your OpenSearch Security Analytics detectors and tells you:
-  which ones went silent, which spikes are explained by the Ethiopian calendar
-  (holidays, fasts, pay days) or by your own patterns, which detectors have
-  been PROVEN to work by replaying an attack, and how much of your detection
-  is unproven (a 0-100 "debt" score). It never changes your detectors or logs.
+2. START OPENSEARCH
+   Docker Desktop with your container running. Wait about a minute.
 
----------------------------------------------------------------------
- STEPS (Windows)
----------------------------------------------------------------------
+3. OPEN POWERSHELL in the folder that has zemen.exe
+   (click the address bar, type powershell, press Enter).
 
- 1. UNZIP
-    Right-click zemen-complete.zip > Extract All. Open the folder named
-    zemen-go, then the folder named dist.
+4. SET YOUR CONNECTION (lasts only while this window is open)
+   $env:ZEMEN_OPENSEARCH_URL = "http://localhost:9200"
+   $env:ZEMEN_OPENSEARCH_USERNAME = "admin"
+   $env:ZEMEN_OPENSEARCH_PASSWORD = "your real password"
 
- 2. START OPENSEARCH
-    Docker Desktop must be running with your OpenSearch container started.
-    Wait about a minute after starting it. Test: open http://localhost:9200
-    in your browser; it should ask for a login or show some JSON.
+5. RUN IN ORDER
+   .\zemen.exe init
+   .\zemen.exe doctor
+   .\zemen.exe init-indices
+   .\zemen.exe sync
+   .\zemen.exe status
+   doctor should end with "All checks passed."
 
- 3. OPEN POWERSHELL IN THE dist FOLDER
-    In File Explorer, click the address bar, type  powershell  and press
-    Enter.
+6. START THE DASHBOARD AND SCHEDULER
+   .\zemen.exe run
+   Leave the window open and visit http://127.0.0.1:8080.
+   For other commands, open a second PowerShell window and repeat step 4.
 
-    --- EASY WAY: steps 4-9 in one go ---------------------------------
-    powershell -ExecutionPolicy Bypass -File .\start-zemen.ps1
-    (It asks for the URL, username and a hidden password. If it works, skip
-    to step 10. If anything fails, use the manual steps below.)
-
- 4. TELL ZEMEN HOW TO CONNECT (paste these 3 lines, use YOUR password)
-      $env:ZEMEN_OPENSEARCH_URL = "http://localhost:9200"
-      $env:ZEMEN_OPENSEARCH_USERNAME = "admin"
-      $env:ZEMEN_OPENSEARCH_PASSWORD = "your real password"
-    These last only while this PowerShell window is open. If you close it,
-    paste them again. Keep the quotes around the password.
-    Use https:// instead of http:// only if your OpenSearch needs it, and
-    then also add:   $env:ZEMEN_OPENSEARCH_INSECURE_SKIP_VERIFY = "true"
-
- 5. CREATE ITS SETTINGS FOLDER
-      .\zemen.exe init
-    Creates a folder named zemen-data with editable templates. Safe to
-    repeat; it never overwrites your edits.
-
- 6. CHECK EVERYTHING
-      .\zemen.exe doctor
-    You want:  [ ok ] lines and "All checks passed."
-    It also shows how many findings each detector has.
-
- 7. CREATE ZEMEN'S INDICES (10 small indices named zemen-*)
-      .\zemen.exe init-indices
-    Safe to repeat.
-
- 8. RUN THE ANALYSIS ONCE
-      .\zemen.exe sync
-    Takes a few seconds. Read the lines it prints; the runbook (test A3)
-    explains each one.
-
- 9. LOOK AT THE RESULTS
-      .\zemen.exe status               health of every detector
-      .\zemen.exe anomalies -v         spike days and why (or why not) explained
-      .\zemen.exe debt -v              detection debt and its reasons
-      .\zemen.exe forecast             upcoming high-noise windows
-      .\zemen.exe calendar --days 120  Ethiopian calendar signals
-
-10. START THE DASHBOARD AND THE SCHEDULER
-      .\zemen.exe run
-    Leave this window open. Open http://127.0.0.1:8080 in your browser.
-    Zemen re-analyses every 10 minutes and runs Replay Court daily (if you
-    have cases). Press Ctrl+C to stop.
-    Use a SECOND PowerShell window for other commands (paste step 4 there
-    too).
-
-11. NOW TEST EVERYTHING
-    Open docs\Zemen_Live_Test_Runbook.docx and work through it in order:
-    Part A (read-only), Part B (Zemen's own data), Part C (real events in
-    your OpenSearch, lab only). Fill in the scorecard at the end.
-
----------------------------------------------------------------------
- IF SOMETHING GOES WRONG
----------------------------------------------------------------------
- "ZEMEN_OPENSEARCH_URL is required"
-      You opened a new PowerShell window. Repeat step 4.
- "HTTP 401: Unauthorized"
-      Wrong username or password.
- "connection refused" / "EOF"
-      OpenSearch is not running yet or is still starting. Wait a minute.
- "server gave HTTP response to HTTPS client"
-      Use http:// in the URL.
- certificate / x509 errors
-      You are using https://. Add the INSECURE_SKIP_VERIFY line (step 4).
- "running scripts is disabled"
-      Use the manual steps instead of start-zemen.ps1, or run it exactly as
-      shown in step 3 (with -ExecutionPolicy Bypass).
- .\zemen.exe prints nothing or "not recognized"
-      You are not in the dist folder, or you are using the Linux file.
- sync works but a detector says no_data_in_window
-      Zemen could not prove that detector's history and will not guess.
-      Run doctor and send me the output.
-
----------------------------------------------------------------------
- GOOD TO KNOW
----------------------------------------------------------------------
- * Updating: unzip the new version somewhere, copy the new zemen.exe over
-   the old one, keep your zemen-data folder. Your data lives in OpenSearch,
-   not in the program.
- * Keeping the settings: add them to Windows once with
-      setx ZEMEN_OPENSEARCH_URL "http://localhost:9200"
-      setx ZEMEN_OPENSEARCH_USERNAME "admin"
-      setx ZEMEN_OPENSEARCH_PASSWORD "your real password"
-   and open a NEW PowerShell window. (This stores the password in your
-   Windows user settings in plain text; fine for a lab, not for production.)
- * The dashboard listens on this computer only (127.0.0.1). To expose it,
-   set ZEMEN_UI_TOKEN first and put it behind HTTPS.
- * If your OpenSearch admin password has ever been pasted into a chat or
-   shared file, change it once the lab holds anything real.
- * Zemen is read-only toward your detectors and logs. The only thing that
-   can add events to your OpenSearch is Replay Court, and only into an index
-   whose name contains "replay" (see runbook C5).
- * Known limits (read these before presenting the project): README.md,
-   section "Know these limits". Short version: tested on a faithful mock
-   cluster and on your real cluster for the core features; Replay Court on
-   a real cluster needs one setup step; default pay-day windows are
-   assumptions; Islamic holiday dates can be off by a day or two.
-
-Linux: chmod +x dist/zemen-linux, then use ./dist/zemen-linux the same way,
-with  export ZEMEN_OPENSEARCH_URL=...  instead of  $env:...
+7. WORK THROUGH THE RUNBOOK (docs\Zemen_Live_Test_Runbook.docx)
+   Part A first (read-only), then Part B, then Part C
+   (real events in your lab, so lab only).
