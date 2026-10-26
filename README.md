@@ -2,6 +2,14 @@
 
 Detection integrity and Ethiopian temporal context for OpenSearch and Wazuh.
 
+## Demo video
+
+[![Zemen demo video]([https://img.youtube.com/vi/YOUR-VIDEO-ID/maxresdefault.jpg)](https://youtu.be/YOUR-VIDEO-ID](https://youtu.be/Ua2puabl500?si=PhSYrZDUCnmPyEi_))
+
+Watch the 5-minute demo: https://youtu.be/YOUR-VIDEO-ID
+
+A walkthrough of every feature: detector health radar, Replay Court, ATT&CK coverage, Ethiopian calendar context, forecast, lineage and the detection debt score.
+
 Zemen sits beside an existing OpenSearch Security Analytics deployment (Wazuh's indexer is OpenSearch, so it works there too). It does not replace your SIEM, add agents, or need new log sources. One Go binary, standard library only.
 
 ## What it does
