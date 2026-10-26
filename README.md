@@ -10,10 +10,18 @@ Watch the 5-minute demo: https://youtu.be/Ua2puabl500?si=dnkRf3ArM2Zr7Jvy
 
 A walkthrough of every feature: detector health radar, Replay Court, ATT&CK coverage, Ethiopian calendar context, forecast, lineage and the detection debt score.
 
-## Team SUKUNA
+## Buitl By Team SUKUNA
 | Name | ID | 
 |---|---|
-| [Yohannes Negero] | [CTC-312-26] |
+| Yohannes Negero | CTC-312-26 | 
+| Yilak Belayneh | CTC-2882-26 |
+| Baslel Getu | CTC-7059-26 |
+| Bekan Nura | CTC-2623-26  |
+| Samuel Dereje | CTC-2910-26 |
+| Hundaol Dechassa | CTC-582-26 |
+
+
+                
 
 
 Zemen sits beside an existing OpenSearch Security Analytics deployment (Wazuh's indexer is OpenSearch, so it works there too). It does not replace your SIEM, add agents, or need new log sources. One Go binary, standard library only.
