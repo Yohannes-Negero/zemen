@@ -10,10 +10,10 @@ Watch the 5-minute demo: https://youtu.be/Ua2puabl500?si=dnkRf3ArM2Zr7Jvy
 
 A walkthrough of every feature: detector health radar, Replay Court, ATT&CK coverage, Ethiopian calendar context, forecast, lineage and the detection debt score.
 
-## Buitl By Team SUKUNA
+## Built By Team SUKUNA
 | Name | ID | 
 |---|---|
-| Yohannes Negero | CTC-312-26 | 
+| Yohannes Negero | CTC-312-26 - Group Leader| 
 | Yilak Belayneh | CTC-2882-26 |
 | Baslel Getu | CTC-7059-26 |
 | Bekan Nura | CTC-2623-26  |
