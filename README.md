@@ -13,12 +13,14 @@ A walkthrough of every feature: detector health radar, Replay Court, ATT&CK cove
 ## Built By Team SUKUNA
 | Name | ID | 
 |---|---|
-| Yohannes Negero | CTC-312-26 - Group Leader| 
+| Yohannes Negero | CTC-312-26 | 
 | Yilak Belayneh | CTC-2882-26 |
 | Baslel Getu | CTC-7059-26 |
 | Bekan Nura | CTC-2623-26  |
 | Samuel Dereje | CTC-2910-26 |
 | Hundaol Dechassa | CTC-582-26 |
+
+# Group Leader: Yohannes Negero 
 
 
                 
