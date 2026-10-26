@@ -4,7 +4,7 @@ Detection integrity and Ethiopian temporal context for OpenSearch and Wazuh.
 
 ## Demo video
 
-[![Zemen demo video](https://img.youtube.com/vi/Ua2puabl500?si=dnkRf3ArM2Zr7Jvy/maxresdefault.jpg)](https://youtu.be/Ua2puabl500?si=dnkRf3ArM2Zr7Jvy)
+[![Zemen demo video](https://img.youtube.com/vi/Ua2puabl500/maxresdefault.jpg)](https://youtu.be/Ua2puabl500?si=dnkRf3ArM2Zr7Jvy)
 
 Watch the 5-minute demo: https://youtu.be/Ua2puabl500?si=dnkRf3ArM2Zr7Jvy
 
