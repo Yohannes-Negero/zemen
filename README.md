@@ -20,7 +20,7 @@ A walkthrough of every feature: detector health radar, Replay Court, ATT&CK cove
 | Samuel Dereje | CTC-2910-26 |
 | Hundaol Dechassa | CTC-582-26 |
 
-### Group Leader: Yohannes Negero 
+Group Leader: Yohannes Negero 
 
 
                 
