@@ -7,6 +7,9 @@ Detection integrity and Ethiopian temporal context for OpenSearch and Wazuh.
 [![Zemen demo video](https://img.youtube.com/vi/Ua2puabl500/maxresdefault.jpg)](https://youtu.be/Ua2puabl500?si=dnkRf3ArM2Zr7Jvy)
 
 Watch the 5-minute demo: https://youtu.be/Ua2puabl500?si=dnkRf3ArM2Zr7Jvy
+
+[![Detector Health Radar demo -by Baslel Getu](https://img.youtube.com/vi/9u6BPdG_myk/maxresdefault.jpg)](https://youtu.be/9u6BPdG_myk)
+
 Baslel's Contributed Video: https://youtu.be/9u6BPdG_myk
 
 A walkthrough of every feature: detector health radar, Replay Court, ATT&CK coverage, Ethiopian calendar context, forecast, lineage and the detection debt score.
